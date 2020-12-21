@@ -1846,10 +1846,10 @@ Tile 3079:
         static void Main(string[] args)
         {
             Console.WriteLine("Hello World!");
-            exo1();
+            exo2();
         }
 
-         static void OutputTile(string[] tile)
+         static void OutputImage(string[] tile)
         {
             foreach (var s in tile)
             {
@@ -2138,9 +2138,11 @@ Tile 3079:
             var byLeftEdge = new Dictionary<string, List<TileCompo>>();
             var byRightEdge = new Dictionary<string, List<TileCompo>>();
             var byBottomEdge = new Dictionary<string, List<TileCompo>>();
+            var allCompos = new List<TileCompo>();
 
             void Index(TileCompo tile)
             {
+                allCompos.Add(tile);
                 if (!byTopEdge.TryGetValue(tile.TopEdge, out var l))
                 {
                     l = new List<TileCompo>();
@@ -2184,9 +2186,9 @@ Tile 3079:
 
 
             IReadOnlyList<TileCompo> EligibleTopLeft(HashSet<int> notAvailable)
-            { var eligibleTopWithoutMatchingAnyBottom = byTopEdge.Values.SelectMany(t => t).Where( v=> !notAvailable.Contains(v.Id)).Where(v =>
+            { var eligibleTopWithoutMatchingAnyBottom = allCompos.Where( v=> !notAvailable.Contains(v.Id)).Where(v =>
                 {
-                    if (!byBottomEdge.TryGetValue(v.BottomEdge, out var l))
+                    if (!byBottomEdge.TryGetValue(v.TopEdge, out var l))
                     {
                         return true;
                     }
@@ -2204,9 +2206,9 @@ Tile 3079:
                 return eligibleTopLeftWithoutMatchingARight.ToArray();
             }
             IReadOnlyList<TileCompo> EligibleTopRight(HashSet<int> notAvailable)
-            { var eligibleTopWithoutMatchingAnyBottom = byTopEdge.Values.SelectMany(t => t).Where( v=> !notAvailable.Contains(v.Id)).Where(v =>
+            { var eligibleTopWithoutMatchingAnyBottom = allCompos.Where( v=> !notAvailable.Contains(v.Id)).Where(v =>
                 {
-                    if (!byBottomEdge.TryGetValue(v.BottomEdge, out var l))
+                    if (!byBottomEdge.TryGetValue(v.TopEdge, out var l))
                     {
                         return true;
                     }
@@ -2227,9 +2229,9 @@ Tile 3079:
 
             IReadOnlyList<TileCompo> EligibleBottomLeft(HashSet<int> notAvailable)
             {
-                var eligibleBottomWithoutMatchingAnyTop = byBottomEdge.Values.SelectMany(t => t).Where( v=> !notAvailable.Contains(v.Id)).Where(v =>
+                var eligibleBottomWithoutMatchingAnyTop = allCompos.Where( v=> !notAvailable.Contains(v.Id)).Where(v =>
                 {
-                    if (!byTopEdge.TryGetValue(v.TopEdge, out var l))
+                    if (!byTopEdge.TryGetValue(v.BottomEdge, out var l))
                     {
                         return true;
                     }
@@ -2249,9 +2251,9 @@ Tile 3079:
             }
             IReadOnlyList<TileCompo> EligibleBottomRight(HashSet<int> notAvailable)
             {
-                var eligibleBottomWithoutMatchingAnyTop = byBottomEdge.Values.SelectMany(t => t).Where( v=> !notAvailable.Contains(v.Id)).Where(v =>
+                var eligibleBottomWithoutMatchingAnyTop = allCompos.Where( v=> !notAvailable.Contains(v.Id)).Where(v =>
                 {
-                    if (!byTopEdge.TryGetValue(v.TopEdge, out var l))
+                    if (!byTopEdge.TryGetValue(v.BottomEdge, out var l))
                     {
                         return true;
                     }
@@ -2312,5 +2314,449 @@ Tile 3079:
 
 
         }
+         private static void exo2()
+        {
+            var lines = input.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
+            var regexHeader = new Regex("^Tile (?<Id>[0-9]+):");
+
+            int currentTile = -1;
+            var tiles = new Dictionary<int, string[]>();
+            List<string> current = new List<string>();
+            foreach (var line in lines)
+            {
+                var match = regexHeader.Match(line);
+                if (match.Success)
+                {
+                    if (currentTile != -1)
+                    {
+                        tiles[currentTile] = current.ToArray();
+                    }
+                    currentTile = Int32.Parse(match.Groups["Id"].Value);
+                    current.Clear();
+                    continue;
+                }
+                current.Add(line);
+            }
+            tiles[currentTile] = current.ToArray();
+
+            int nbTileSide = (int) Math.Sqrt(tiles.Count);
+
+            int tileWidth = tiles.First().Value.Length;
+            var byTopEdge = new Dictionary<string, List<TileCompo>>();
+            var byLeftEdge = new Dictionary<string, List<TileCompo>>();
+            var byRightEdge = new Dictionary<string, List<TileCompo>>();
+            var byBottomEdge = new Dictionary<string, List<TileCompo>>();
+            var allCompos = new List<TileCompo>();
+
+            void Index(TileCompo tile)
+            {
+                allCompos.Add(tile);
+                if (!byTopEdge.TryGetValue(tile.TopEdge, out var l))
+                {
+                    l = new List<TileCompo>();
+                    byTopEdge[tile.TopEdge] = l;
+                }
+                l.Add( tile);
+                if (!byBottomEdge.TryGetValue(tile.BottomEdge, out l))
+                {
+                    l = new List<TileCompo>();
+                    byBottomEdge[tile.BottomEdge] = l;
+                }
+                l.Add( tile);
+
+                if (!byLeftEdge.TryGetValue(tile.LeftEdge, out l))
+                {
+                    l = new List<TileCompo>();
+                    byLeftEdge[tile.LeftEdge] = l;
+                }
+                l.Add( tile);
+
+                if (!byRightEdge.TryGetValue(tile.RightEdge, out l))
+                {
+                    l = new List<TileCompo>();
+                    byRightEdge[tile.RightEdge] = l;
+                }
+                l.Add( tile);
+            }
+            foreach (var kv in tiles)
+            {
+                List<TileCompo> tileVariants = new List<TileCompo>();
+
+                void AddIfNotPresent(TileCompo cv)
+                {
+                    if (tileVariants.Any(v => AreEqual(v.Content, cv.Content)))
+                    {
+                        return;
+                    }
+                    tileVariants.Add(cv);
+                }
+                for (int r = 0; r < 4; r++)
+                {
+                    var rotated = Rotate(kv.Value, r);
+                    AddIfNotPresent( new TileCompo(kv.Key, r, false, false, rotated));
+                    AddIfNotPresent( new TileCompo(kv.Key, r, true, false, FlipVertical(rotated)));
+                    AddIfNotPresent( new TileCompo(kv.Key, r, false, true, FlipHorizontal(rotated)));
+                }
+
+                foreach (var tileVariant in tileVariants)
+                {
+                    Index(tileVariant);
+                }
+            }
+
+            Console.WriteLine($"Total combis: {allCompos.Count}");
+
+            //search for topleft
+
+            var composOnTop = allCompos.Where(v =>
+            {
+                if (!byBottomEdge.TryGetValue(v.TopEdge, out var l))
+                {
+                    return true;
+                }
+
+                return l.All(t => t.Id == v.Id);
+            }).ToHashSet();
+
+            var composOnBottom = allCompos.Where(v =>
+            {
+                if (!byTopEdge.TryGetValue(v.BottomEdge, out var l))
+                {
+                    return true;
+                }
+                return l.All(t => t.Id == v.Id);
+            }).ToArray();
+            
+            var composOnRight = allCompos.Where(v =>
+            {
+                if (!byLeftEdge.TryGetValue(v.RightEdge, out var l))
+                {
+                    return true;
+                }
+                return l.All(t => t.Id == v.Id);
+            }).ToArray();
+            
+            var composOnLeft = allCompos.Where(v =>
+            {
+                if (!byRightEdge.TryGetValue(v.LeftEdge, out var l))
+                {
+                    return true;
+                }
+                return l.All(t => t.Id == v.Id);
+            }).ToArray();
+
+
+            IReadOnlyList<TileCompo> EligibleTopLeft(HashSet<int> notAvailable)
+            { 
+               return composOnTop.Where( v=> !notAvailable.Contains(v.Id) && composOnLeft.Contains(v)).ToArray();
+            }
+            IReadOnlyList<TileCompo> EligibleTopRight(HashSet<int> notAvailable)
+            { 
+                return composOnTop.Where( v=> !notAvailable.Contains(v.Id) && composOnRight.Contains(v)).ToArray();
+            }
+
+            IReadOnlyList<TileCompo> EligibleBottomLeft(HashSet<int> notAvailable)
+            {
+                return composOnBottom.Where( v=> !notAvailable.Contains(v.Id) && composOnLeft.Contains(v)).ToArray();
+            }
+            IReadOnlyList<TileCompo> EligibleBottomRight(HashSet<int> notAvailable)
+            {
+                return composOnBottom.Where( v=> !notAvailable.Contains(v.Id) && composOnRight.Contains(v)).ToArray();
+            }
+
+
+            Console.WriteLine(string.Join(",", EligibleTopLeft(new HashSet<int>()).Select(t => t.Id)));
+            Console.WriteLine(string.Join(",", EligibleBottomLeft(new HashSet<int>()).Select(t => t.Id)));
+            Console.WriteLine(string.Join(",", EligibleTopRight(new HashSet<int>()).Select(t => t.Id)));
+            Console.WriteLine(string.Join(",", EligibleBottomRight(new HashSet<int>()).Select(t => t.Id)));
+
+            var currentSelection = new HashSet<int>();
+            var possibleEdgesCombis = new List<( TileCompo tl, TileCompo tr, TileCompo br, TileCompo bl)>();
+            foreach (var tl in EligibleTopLeft(currentSelection))
+            {
+                currentSelection.Add(tl.Id);
+                foreach (var tr in EligibleTopRight(currentSelection))
+                {
+                    currentSelection.Add(tr.Id);
+                    foreach (var br in EligibleBottomRight(currentSelection))
+                    {
+                        currentSelection.Add(br.Id);
+                        foreach (var bl in EligibleBottomLeft(currentSelection))
+                        {
+                            currentSelection.Add(bl.Id);
+                           //Console.WriteLine(string.Join(",", currentSelection));
+                           long mul = 1;
+                           foreach (var tmp in currentSelection)
+                           {
+                               mul *= tmp;
+                           }
+                           Console.WriteLine(mul);
+                           //Environment.Exit(0);
+                           possibleEdgesCombis.Add((tl, tr, br, bl));
+                           currentSelection.Remove(bl.Id);
+                        }
+                        currentSelection.Remove(br.Id);
+
+                    }
+                    currentSelection.Remove(tr.Id);
+
+                }
+                currentSelection.Remove(tl.Id);
+
+            }
+
+            var tileCompos = Enumerable.Range(0,nbTileSide).Select( i=> new TileCompo[nbTileSide]).ToArray();
+            currentSelection.Clear();
+
+            Console.WriteLine($"combis:{possibleEdgesCombis.Count}");
+
+            //var notSelected = new HashSet<TileCompo>();
+
+            bool CanFill(int i, int j) {
+                if (j == nbTileSide)
+                {
+                    j = 0;
+                    i++;
+                }
+                //Console.WriteLine($"{i} / {j}");
+
+                if (i >= nbTileSide) {//alrady filled
+                    return true;
+                }
+               
+                if (tileCompos[i][j] != null)
+                {
+                    return CanFill(i , j + 1);
+                }
+
+                TileCompo[] eligible = allCompos.Where(v => !currentSelection.Contains(v.Id)).ToArray();
+                bool checkTop = false;
+                bool checkBottom = false;
+                bool checkLeft = false;
+                bool checkRight = false;
+
+                if (i == 0)
+                {
+                    eligible = eligible.Where(v => composOnTop.Contains(v)).ToArray();
+                    checkLeft = true;
+                    if (j == nbTileSide - 2) {
+                        checkRight = true;
+                    }
+                }
+                else if (i == nbTileSide - 1) {
+                     eligible = eligible.Where(v => composOnBottom.Contains(v)).ToArray();
+                     checkTop = true;
+                     checkLeft = true;
+                     if (j == nbTileSide - 2) {
+                         checkRight = true;
+                     }
+                }
+                else if (j == 0)
+                {
+                    eligible = eligible.Where(v => composOnLeft.Contains(v)).ToArray();
+                    checkTop = true;
+                    if (i == nbTileSide - 2) {
+                        checkBottom = true;
+                    }
+                }
+                else if (j == nbTileSide - 1) {
+                    eligible = eligible.Where(v => composOnRight.Contains(v)).ToArray();
+                    checkTop = true;
+                    checkLeft = true;
+                    if (i == nbTileSide - 2) {
+                        checkBottom = true;
+                    }
+                }
+                else
+                {
+                    checkLeft = true;
+                    checkTop = true;
+                }
+                if (eligible.Length == 0) {
+                    return false;
+                }
+                if (checkTop) {
+                    eligible =  eligible.Where(t => t.TopEdge == tileCompos[i-1][j].BottomEdge).ToArray();
+                }
+                if (eligible.Length == 0) {
+                    return false;
+                }
+                
+                if (checkBottom) {
+                    eligible =  eligible.Where(t => t.BottomEdge == tileCompos[i+1][j].TopEdge).ToArray();
+                }
+                if (eligible.Length == 0) {
+                    return false;
+                }
+
+                if (checkLeft) {
+                    eligible =  eligible.Where(t => t.LeftEdge == tileCompos[i][j-1].RightEdge).ToArray();
+                }
+                if (eligible.Length == 0) {
+                    return false;
+                }
+
+                if (checkRight) {
+                    eligible =  eligible.Where(t => t.RightEdge == tileCompos[i][j+1].LeftEdge).ToArray();
+                }
+                if (eligible.Length == 0) {
+                    return false;
+                }
+
+                if (eligible.Length > 3)
+                {
+                    Console.WriteLine($"Nb candidate: {eligible.Length}");
+                }
+                foreach (var candidate in eligible)
+                {
+                    currentSelection.Add(candidate.Id);
+                    //notSelected.Remove(candidate);
+                    tileCompos[i][j] = candidate;
+                    if (CanFill(i, j + 1)) {
+                        return true;
+                    }
+                    tileCompos[i][j] = null;
+                    currentSelection.Remove(candidate.Id);
+                    //notSelected.Add(candidate);
+
+                }
+                return false;
+            }
+            
+            
+
+            foreach (var tuple in possibleEdgesCombis)
+            {
+                tileCompos[0][0] = tuple.tl;
+                tileCompos[0][nbTileSide-1] = tuple.tr;
+                tileCompos[nbTileSide-1][nbTileSide-1] = tuple.br;
+                tileCompos[nbTileSide-1][0] = tuple.bl;
+                currentSelection.Add(tuple.tl.Id);
+                currentSelection.Add(tuple.tr.Id);
+                currentSelection.Add(tuple.bl.Id);
+                currentSelection.Add(tuple.br.Id);
+                Console.WriteLine(string.Join(",", currentSelection));
+                if (CanFill(0, 1))
+                {
+                    Console.WriteLine("found");
+                    break;
+                }
+                else
+                {
+                    Console.WriteLine("not found");
+                }
+
+            }
+
+            int finalImageWidth = nbTileSide * (tileWidth - 2);
+            var imageb = new List<string>();
+
+            for (int i = 0; i < nbTileSide; i++)
+            {
+                
+                for (int k = 1; k < tileWidth - 1; k++)
+                {
+                    var aLine = new List<char>(finalImageWidth);
+                    for (int j = 0; j < nbTileSide; j++)
+                    {
+
+                        aLine.AddRange(tileCompos[i][j].Content[k].Substring(1, tileWidth - 2));
+                    }
+                    imageb.Add(new string(aLine.ToArray()));
+
+                }
+
+            }
+
+            var finalImage = imageb.ToArray();
+
+
+
+            ( int x, int y)[] monsterPat = MonsterPat();
+            void OuputFinalImage(string[] img)
+            {
+                int nbMonster = 0;
+                int nbHash = 0;
+                for (int i = 0; i < img.Length; i++) {
+                    for (int j = 0; j < img[i].Length; j++) {
+                        if (HasMonster(img, i, j, monsterPat))
+                        {
+                            nbMonster++;
+                            Console.WriteLine($"Has monster on {i} / {j}");
+                        }
+
+                        if (HasHash(img, i, j))
+                        {
+                            nbHash++;
+                        }
+                        
+                    }
+                    
+                }
+
+
+                if (nbMonster > 0)
+                {
+                    OutputImage(img);
+                    Console.WriteLine($"Total Hash: {nbHash} - ( {nbMonster} * 15) = {nbHash-nbMonster*15}");
+
+                }
+                Console.WriteLine();
+            }
+            
+            
+            for( int r = 0;r<4;r++)
+            {
+                var rotated = Rotate(finalImage, r);
+                OuputFinalImage(rotated);
+                OuputFinalImage(FlipVertical(rotated));
+                OuputFinalImage(FlipHorizontal(rotated));
+            }
+        }
+
+         static bool HasMonster(string[] img, int i, int j,( int x, int y)[] monsterPat )
+         {
+             foreach (var (x, y) in monsterPat)
+             {
+                 if (!HasHash(img,i + x, j + y))
+                 {
+                     return false;
+                 }
+             }
+
+             return true;
+         }
+         static bool HasHash(string[] img, int i, int j )
+         {
+             if (i < 0 || i >= img.Length || j < 0 || j >= img.Length || img[i][j] != '#')
+             {
+                 return false;
+             }
+
+             return true;
+         }
+
+         static ( int x, int y)[] MonsterPat()
+         {
+             var lines = monsterPattern.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
+             var res = new List<(int, int)>(14);
+             for (int i = 0; i < lines.Length; i++)
+             {
+                 for (int j = 0; j < lines[i].Length; j++)
+                 {
+                     if (lines[i][j] == '#')
+                     {
+                         res.Add((i,j));
+                     }
+                 }
+             }
+
+             return res.ToArray();
+         }
+
+         private const string monsterPattern = @"
+                  # 
+#    ##    ##    ###
+ #  #  #  #  #  #   ";
     }
 }

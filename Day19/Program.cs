@@ -1226,7 +1226,7 @@ babaabbbbabaaaabaabaaabbbaabaababbbababb";
 9: 14 27 | 1 26
 10: 23 14 | 28 1
 1: ""a""
-11: 42 31 | 42 11 31
+11: 42 31
 5: 1 14 | 15 1
 19: 14 1 | 14 14
 12: 24 14 | 19 1
@@ -1248,7 +1248,7 @@ babaabbbbabaaaabaabaaabbbaabaababbbababb";
 21: 14 1 | 1 14
 25: 1 1 | 1 14
 22: 14 14
-8: 42 | 42 8
+8: 42
 26: 14 22 | 1 20
 18: 15 15
 7: 14 5 | 1 21
@@ -1273,7 +1273,7 @@ aabbbbbaabbbaaaaaabbbbbababaaaaabbaaabba";
 9: 14 27 | 1 26
 10: 23 14 | 28 1
 1: ""a""
-11: 42 31 | 42 11 31
+11: 42 31
 5: 1 14 | 15 1
 19: 14 1 | 14 14
 12: 24 14 | 19 1
@@ -1295,58 +1295,31 @@ aabbbbbaabbbaaaaaabbbbbababaaaaabbaaabba";
 21: 14 1 | 1 14
 25: 1 1 | 1 14
 22: 14 14
-8: 42 | 42 8
+8: 42
 26: 14 22 | 1 20
 18: 15 15
 7: 14 5 | 1 21
 24: 14 1
 
-babbbbaabbbbbabbbbbbaabaaabaaa"; //42 match 'babbb' ou 
-        private const string test2c = @"42: 9 14 | 10 1
-9: 14 27 | 1 26
-10: 23 14 | 28 1
-1: ""a""
-11: 42 31 | 42 11 31
-5: 1 14 | 15 1
-19: 14 1 | 14 14
-12: 24 14 | 19 1
-16: 15 1 | 14 14
-31: 14 17 | 1 13
-6: 14 14 | 1 14
-2: 1 24 | 14 4
-0: 8 11
-13: 14 3 | 1 12
-15: 1 | 14
-17: 14 2 | 1 7
-23: 25 1 | 22 14
-28: 16 1
-4: 1 1
-20: 14 14 | 1 15
-3: 5 14 | 16 1
-27: ""abb"" | 14 18
-14: ""b""
-21: 14 1 | 1 14
-25: 1 1 | 1 14
-22: 14 14
-8: 42 | 42 8
-26: 14 22 | 1 20
-18: 15 15
-7: 14 5 | 1 21
-24: 14 1
+aaaabbaabbaaaaaaabbbabbbaaabbaabaaa"; //42 match 'babbb' ou
 
-babbbbaabbbbbabbbbbbaabaaabaaa";
           private static void exo2()
         {
-            var lines = test2b.Split(Environment.NewLine);
+            var lines = input.Split(Environment.NewLine);
 
             var characterMatch = new Dictionary<int, char>();
             var combiMatch = new Dictionary<int, int[][]>();
 
-            int i = 0;
-            while (i < lines.Length && lines[i].Length != 0)
+            int mIdx = 0;
+            while (mIdx < lines.Length && lines[mIdx].Length != 0)
             {
-                var p = lines[i].Split(':', StringSplitOptions.RemoveEmptyEntries);
+                var p = lines[mIdx].Split(':', StringSplitOptions.RemoveEmptyEntries);
                 int ruleId = Int32.Parse(p[0].Trim());
+                if (ruleId == 8 || ruleId == 11 ||ruleId == 0)
+                {
+                    mIdx++;
+                    continue;
+                }
                 if (p[1].Contains("\""))
                 {
                     characterMatch[ruleId] = p[1].Trim()[1];
@@ -1362,15 +1335,205 @@ babbbbaabbbbbabbbbbbaabaaabaaa";
 
                     combiMatch[ruleId] = combiRules.ToArray();
                 }
-                i++;
+                mIdx++;
             }
 
-            i++;
+            mIdx++;
             var messages = new List<string>();
-            while (i < lines.Length)
+            while (mIdx < lines.Length)
             {
-                messages.Add(lines[i++]);
+                messages.Add(lines[mIdx++]);
             }
+
+            var stringMatch = new Dictionary<int, string[]>();
+
+            string[] ToStringMatch(int ruleId)
+            {
+                if (stringMatch.TryGetValue(ruleId, out var res))
+                {
+                    return res;
+                }
+
+                if (characterMatch.TryGetValue(ruleId, out var character))
+                {
+                    return new[] {new string(new[] {character}),};
+                }
+                List<string> combis = new List<string>();
+                foreach (var andRule in combiMatch[ruleId]) {
+
+
+                    if (andRule.Length == 1)
+                    {
+                        combis.AddRange(ToStringMatch(andRule[0]));
+                        continue;
+                    }
+                    if (andRule.Length != 2) {
+                        throw new Exception($"weird andRule: {ruleId}");
+                    }
+                    var prefixes = ToStringMatch(andRule[0]);
+                    var suffixes = ToStringMatch(andRule[1]);
+                    foreach (var prefix in prefixes)
+                    {
+                        foreach (var suffix in suffixes)
+                        {
+                            combis.Add(prefix + suffix);
+                        }
+                    }
+                }
+
+                int width = combis[0].Length;
+                if (combis.Any(s => s.Length != width))
+                {
+                    throw new Exception("unaligned");
+                }
+
+                var strings = combis.ToArray();
+                stringMatch[ruleId] = strings;
+                return strings;
+            }
+
+            foreach (var combiMatchKey in combiMatch.Keys)
+            {
+                if (!stringMatch.ContainsKey(combiMatchKey))
+                {
+                    stringMatch[combiMatchKey] = ToStringMatch(combiMatchKey);
+                }
+            }
+
+            foreach (var kv in stringMatch)
+            {
+                Console.WriteLine($"{kv.Key}: \"{string.Join("\" | \"", kv.Value)}\"");
+            }
+
+            bool MatchUnRoll(int ruleId, string val, ref int pointer)
+            {
+                if (pointer >= val.Length) {
+                    return false;
+                }
+                var matches = stringMatch[ruleId];
+                foreach (var match in matches)
+                {
+                    if (val.Substring(pointer).StartsWith(match))
+                    {
+                        pointer += match.Length;
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            bool MatchRuleNTimesUnrolled(int ruleId, string val, int n, ref int pointer)
+            {
+                bool match = true;
+                for (int i = 0; i < n; i++)
+                {
+                    if (!MatchUnRoll(ruleId, val, ref pointer))
+                    {
+                        match = false;
+                        break;
+                    }
+                }
+
+                return match;
+            }
+
+            bool Match42NAnd42MAnd31MTimesUnrolled( string val ) {
+                for (int n = 1; n < 10; n++)
+                {
+                    //Console.WriteLine($"Try with n:{n}");
+                    int pointer = 0;
+
+                    if (!MatchRuleNTimesUnrolled( 42,val, n, ref pointer))
+                    {
+                        continue;
+                    }
+                    //Console.WriteLine($"Can match 42 n{n}");
+
+                    int savpointer = pointer;
+                    int m = 1;
+                    for (; m < 10; m++)
+                    {
+                        pointer = savpointer;
+                        if (!MatchRuleNTimesUnrolled( 42,val, m, ref pointer))
+                        {
+                            continue;
+                        }
+                       // Console.WriteLine($"Can match 42 m {m}");
+                        if (!MatchRuleNTimesUnrolled( 31,val, m, ref pointer))
+                        {
+                            continue;
+                        }
+                        //Console.WriteLine($"Can match 31 m {m}");
+                        if ( pointer >= val.Length)
+                        {
+                            Console.WriteLine($"Match with n:{n} and m: {m}");
+                            return true;
+                        }
+                    }
+
+
+                }
+
+                return false;
+            }
+
+
+            bool MatchRuleNTimes(int ruleId, string val, int n, ref int pointer)
+            {
+                bool match = true;
+                for (int i = 0; i < n; i++)
+                {
+                    if (!Match(ruleId, val, ref pointer))
+                    {
+                        match = false;
+                        break;
+                    }
+                }
+
+                return match;
+            }
+
+            bool Match42NAnd42MAnd31MTimes( string val ) {
+                for (int n = 1; n < 7; n++)
+                {
+                    Console.WriteLine($"Try with n:{n}");
+                    int pointer = 0;
+
+                    if (!MatchRuleNTimes( 42,val, n, ref pointer))
+                    {
+                        continue;
+                    }
+                    Console.WriteLine($"Can match 42 n{n}");
+
+                    bool match11 = true;
+                    int m = 1;
+                    for (; m < 7; m++) {
+                        if (!MatchRuleNTimes( 42,val, m, ref pointer))
+                        {
+                            match11 = false;
+                            break;
+                        }
+                        Console.WriteLine($"Can match 42 m{m}");
+                        if (!MatchRuleNTimes( 31,val, m, ref pointer))
+                        {
+                            match11 = false;
+                            break;
+                        }
+                        Console.WriteLine($"Can match 31 m{m}");
+                    }
+
+                    if (match11 && pointer >= val.Length)
+                    {
+                        Console.WriteLine($"Match with n:{n} and m: {m}");
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+
 
             bool Match(int ruleId, string val, ref int pointer)
             {
@@ -1380,10 +1543,10 @@ babbbbaabbbbbabbbbbbaabaaabaaa";
                 if (characterMatch.TryGetValue(ruleId, out var c))
                 {
                     var b = val[pointer++] == c;
-                    if (b)
+                    /*if (b)
                     {
                         Console.WriteLine(ruleId);
-                    }
+                    }*/
                     return b ;
                 }
 
@@ -1401,7 +1564,7 @@ babbbbaabbbbbabbbbbbaabaaabaaa";
                     }
 
                     if (matchCombi) {
-                        Console.WriteLine(ruleId);
+                        //Console.WriteLine(ruleId);
                         return true;
                     }
                 }
@@ -1412,8 +1575,7 @@ babbbbaabbbbbabbbbbbaabaaabaaa";
             int nbValid = 0;
             foreach (var message in messages)
             {
-                int p = 0;
-                if (Match(0, message, ref p) && p >= message.Length)
+                if (Match42NAnd42MAnd31MTimesUnrolled(message) )
                 {
                     nbValid++;
                     Console.WriteLine(message + " valid");
